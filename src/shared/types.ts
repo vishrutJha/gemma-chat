@@ -43,6 +43,8 @@ export interface ChatRequest {
   conversationId: string
   messages: Array<{ role: Role; content: string; toolCalls?: ToolCall[] }>
   model: string
+  provider?: 'local' | 'gemini'
+  apiKey?: string
   enableTools: boolean
   mode: AgentMode
 }
@@ -121,4 +123,3 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
 ]
 
 export const DEFAULT_MODEL = 'mlx-community/gemma-4-e4b-it-4bit'
-
