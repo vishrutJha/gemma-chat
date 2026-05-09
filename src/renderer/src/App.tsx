@@ -5,7 +5,7 @@ import Chat from './components/Chat'
 
 type AppState =
   | { phase: 'boot' }
-  | { phase: 'setup'; status: SetupStatus; model: string }
+  | { phase: 'setup'; status: SetupStatus; model: string; provider: 'local' | 'gemini'; geminiModel: string; geminiApiKey: string }
   | { phase: 'ready'; model: string }
   | { phase: 'switching'; model: string; toModel: string; status: SetupStatus }
 
@@ -40,7 +40,10 @@ export default function App() {
             return { ...prev, status }
           }
           const model = prev.phase === 'setup' ? prev.model : DEFAULT_MODEL
-          return { phase: 'setup', status, model }
+          const provider = prev.phase === 'setup' ? prev.provider : 'local'
+          const geminiModel = prev.phase === 'setup' ? prev.geminiModel : 'gemini-2.5-flash'
+          const geminiApiKey = prev.phase === 'setup' ? prev.geminiApiKey : ''
+          return { phase: 'setup', status, model, provider, geminiModel, geminiApiKey }
         })
       })
 
@@ -54,7 +57,10 @@ export default function App() {
           setState({
             phase: 'setup',
             status: { stage: 'starting-mlx', message: 'Starting model runtime…' },
-            model: DEFAULT_MODEL
+            model: DEFAULT_MODEL,
+            provider: 'local',
+            geminiModel: 'gemini-2.5-flash',
+            geminiApiKey: ''
           })
           window.api.startSetup(DEFAULT_MODEL)
           return
@@ -63,7 +69,10 @@ export default function App() {
       setState({
         phase: 'setup',
         status: { stage: 'checking', message: 'Welcome' },
-        model: DEFAULT_MODEL
+        model: DEFAULT_MODEL,
+        provider: (localStorage.getItem('gemma-chat:provider') as 'local' | 'gemini') ?? 'local',
+        geminiModel: localStorage.getItem('gemma-chat:gemini-model') ?? 'gemini-2.5-flash',
+        geminiApiKey: localStorage.getItem('gemma-chat:gemini-key') ?? ''
       })
     })()
     return () => {
@@ -96,14 +105,30 @@ export default function App() {
         <Setup
           status={state.status}
           model={state.model}
+          provider={state.provider}
+          geminiModel={state.geminiModel}
+          geminiApiKey={state.geminiApiKey}
           onModelChange={(m) =>
             setState((s) => (s.phase === 'setup' ? { ...s, model: m } : s))
           }
-          onStart={(model) => {
+          onProviderChange={(provider) => setState((s) => (s.phase === 'setup' ? { ...s, provider } : s))}
+          onGeminiModelChange={(geminiModel) => setState((s) => (s.phase === 'setup' ? { ...s, geminiModel } : s))}
+          onGeminiApiKeyChange={(geminiApiKey) => setState((s) => (s.phase === 'setup' ? { ...s, geminiApiKey } : s))}
+          onStart={({ model, provider, geminiModel, geminiApiKey }) => {
+            localStorage.setItem('gemma-chat:provider', provider)
+            localStorage.setItem('gemma-chat:gemini-model', geminiModel)
+            localStorage.setItem('gemma-chat:gemini-key', geminiApiKey)
+            if (provider === 'gemini') {
+              setState({ phase: 'ready', model: DEFAULT_MODEL })
+              return
+            }
             setState({
               phase: 'setup',
               status: { stage: 'checking', message: 'Checking system…' },
-              model
+              model,
+              provider,
+              geminiModel,
+              geminiApiKey
             })
             window.api.startSetup(model)
           }}
