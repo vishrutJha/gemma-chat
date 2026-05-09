@@ -1,11 +1,17 @@
-import { AVAILABLE_MODELS, type SetupStatus } from '@shared/types'
+import { AVAILABLE_MODELS, GEMINI_MODELS, type SetupStatus } from '@shared/types'
 import gemmaLogoUrl from '../assets/gemma-logo.png'
 
 interface Props {
   status: SetupStatus
   model: string
+  provider: 'local' | 'gemini'
+  geminiModel: string
+  geminiApiKey: string
   onModelChange: (m: string) => void
-  onStart: (model: string) => void
+  onProviderChange: (p: 'local' | 'gemini') => void
+  onGeminiModelChange: (m: string) => void
+  onGeminiApiKeyChange: (k: string) => void
+  onStart: (cfg: { model: string; provider: 'local' | 'gemini'; geminiModel: string; geminiApiKey: string }) => void
 }
 
 function formatBytes(n?: number): string {
@@ -20,7 +26,7 @@ function formatBytes(n?: number): string {
   return `${v.toFixed(v < 10 && i > 0 ? 1 : 0)} ${u[i]}`
 }
 
-export default function Setup({ status, model, onModelChange, onStart }: Props) {
+export default function Setup({ status, model, provider, geminiModel, geminiApiKey, onModelChange, onProviderChange, onGeminiModelChange, onGeminiApiKeyChange, onStart }: Props) {
   const isWorking =
     status.stage === 'checking' ||
     status.stage === 'installing-mlx' ||
@@ -28,7 +34,7 @@ export default function Setup({ status, model, onModelChange, onStart }: Props) 
     status.stage === 'downloading-model'
 
   if (status.stage === 'checking' && status.message === 'Welcome') {
-    return <WelcomeScreen model={model} onModelChange={onModelChange} onStart={onStart} />
+    return <WelcomeScreen model={model} provider={provider} geminiModel={geminiModel} geminiApiKey={geminiApiKey} onModelChange={onModelChange} onProviderChange={onProviderChange} onGeminiModelChange={onGeminiModelChange} onGeminiApiKeyChange={onGeminiApiKeyChange} onStart={onStart} />
   }
 
   return (
@@ -70,7 +76,7 @@ export default function Setup({ status, model, onModelChange, onStart }: Props) 
               <div className="font-medium">Something went wrong</div>
               <div className="mt-1 text-red-300/80">{status.error}</div>
               <button
-                onClick={() => onStart(model)}
+                onClick={() => onStart({ model, provider, geminiModel, geminiApiKey })}
                 className="mt-3 rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-xs hover:bg-white/10"
               >
                 Try again
@@ -85,12 +91,24 @@ export default function Setup({ status, model, onModelChange, onStart }: Props) 
 
 function WelcomeScreen({
   model,
+  provider,
+  geminiModel,
+  geminiApiKey,
   onModelChange,
+  onProviderChange,
+  onGeminiModelChange,
+  onGeminiApiKeyChange,
   onStart
 }: {
   model: string
+  provider: 'local' | 'gemini'
+  geminiModel: string
+  geminiApiKey: string
   onModelChange: (m: string) => void
-  onStart: (model: string) => void
+  onProviderChange: (p: 'local' | 'gemini') => void
+  onGeminiModelChange: (m: string) => void
+  onGeminiApiKeyChange: (k: string) => void
+  onStart: (cfg: { model: string; provider: 'local' | 'gemini'; geminiModel: string; geminiApiKey: string }) => void
 }) {
   const selected = AVAILABLE_MODELS.find((m) => m.name === model) ?? AVAILABLE_MODELS[1]
   return (
@@ -108,9 +126,24 @@ function WelcomeScreen({
             </p>
           </div>
 
-          <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-ink-400">
-            Pick a model
+          <div className="mb-3 flex gap-2 text-xs">
+            <button onClick={() => onProviderChange('local')} className={`rounded px-2 py-1 ${provider === 'local' ? 'bg-white/15 text-white' : 'bg-white/5 text-ink-300'}`}>Local</button>
+            <button onClick={() => onProviderChange('gemini')} className={`rounded px-2 py-1 ${provider === 'gemini' ? 'bg-white/15 text-white' : 'bg-white/5 text-ink-300'}`}>Gemini</button>
           </div>
+          {provider === 'local' && <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-ink-400">Pick a model</div>}
+          {provider === 'gemini' && (
+            <div className="mb-4 space-y-2">
+              <select value={geminiModel} onChange={(e) => onGeminiModelChange(e.target.value)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm">
+                {GEMINI_MODELS.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+              <input value={geminiApiKey} onChange={(e) => onGeminiApiKeyChange(e.target.value)} placeholder="Gemini API key" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm" />
+            </div>
+          )}
+          {provider === 'local' && (
           <div className="anim-stagger space-y-2">
             {AVAILABLE_MODELS.map((m) => (
               <button
@@ -139,12 +172,13 @@ function WelcomeScreen({
               </button>
             ))}
           </div>
+          )}
 
           <button
-            onClick={() => onStart(selected.name)}
+            onClick={() => onStart({ model: selected.name, provider, geminiModel, geminiApiKey })}
             className="mt-6 w-full rounded-xl bg-white py-3 text-sm font-medium text-ink-900 transition hover:bg-white/90 active:scale-[0.99]"
           >
-            Download {selected.label} &nbsp;·&nbsp; {selected.size}
+            {provider === 'local' ? `Download ${selected.label}  ·  ${selected.size}` : 'Continue with Gemini'}
           </button>
           <p className="mt-3 text-center text-[11px] text-ink-400">
             We'll install MLX runtime if needed. Model weights are cached locally.

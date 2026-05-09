@@ -428,6 +428,13 @@ export interface MLXChatOptions {
   temperature?: number
 }
 
+export interface GeminiChatOptions {
+  model: string
+  messages: MLXChatMessage[]
+  apiKey: string
+  signal?: AbortSignal
+}
+
 export async function* chatStream(
   opts: MLXChatOptions
 ): AsyncGenerator<{ content?: string; done?: boolean }> {
@@ -518,3 +525,40 @@ async function* readSSE(stream: ReadableStream<Uint8Array>): AsyncGenerator<stri
 }
 
 export { MLX_URL }
+
+export async function* geminiChatStream(
+  opts: GeminiChatOptions
+): AsyncGenerator<{ content?: string; done?: boolean }> {
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${opts.model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(opts.apiKey)}`
+  const contents = opts.messages
+    .filter((m) => m.role !== 'system')
+    .map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }))
+  const system = opts.messages.find((m) => m.role === 'system')
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      contents,
+      systemInstruction: system ? { parts: [{ text: system.content }] } : undefined
+    }),
+    signal: opts.signal
+  })
+  if (!res.ok || !res.body) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Gemini request failed: ${res.status} ${res.statusText} — ${text}`)
+  }
+  const stream = res.body as unknown as ReadableStream<Uint8Array>
+  for await (const event of readSSE(stream)) {
+    try {
+      const parsed = JSON.parse(event) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }
+      const text = parsed.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('')
+      if (text) yield { content: text }
+    } catch {
+      // ignore
+    }
+  }
+  yield { done: true }
+}

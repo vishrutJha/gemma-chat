@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AVAILABLE_MODELS, type AgentMode, type ChatMessage, type ToolCall, type StreamChunk } from '@shared/types'
+import { AVAILABLE_MODELS, GEMINI_MODELS, type AgentMode, type ChatMessage, type ToolCall, type StreamChunk } from '@shared/types'
 import gemmaLogoUrl from '../assets/gemma-logo.png'
 import Composer from './Composer'
 import Message from './Message'
@@ -57,6 +57,11 @@ function newId(prefix: string): string {
 }
 
 export default function Chat({ model, onSwitchModel }: Props) {
+  const [provider, setProvider] = useState<'local' | 'gemini'>(
+    () => (localStorage.getItem('gemma-chat:provider') as 'local' | 'gemini') ?? 'local'
+  )
+  const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('gemma-chat:gemini-key') ?? '')
+  const [geminiModel, setGeminiModel] = useState(() => localStorage.getItem('gemma-chat:gemini-model') ?? GEMINI_MODELS[0])
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     const loaded = loadConversations()
     return loaded.length ? loaded : [newConversation()]
@@ -73,6 +78,9 @@ export default function Chat({ model, onSwitchModel }: Props) {
   useEffect(() => {
     saveConversations(conversations)
   }, [conversations])
+  useEffect(() => localStorage.setItem('gemma-chat:provider', provider), [provider])
+  useEffect(() => localStorage.setItem('gemma-chat:gemini-key', geminiApiKey), [geminiApiKey])
+  useEffect(() => localStorage.setItem('gemma-chat:gemini-model', geminiModel), [geminiModel])
 
   function updateActive(fn: (c: Conversation) => Conversation): void {
     setConversations((cs) => cs.map((c) => (c.id === activeId ? fn(c) : c)))
@@ -151,7 +159,9 @@ export default function Chat({ model, onSwitchModel }: Props) {
         {
           conversationId: activeId,
           messages: history,
-          model,
+          model: provider === 'gemini' ? geminiModel : model,
+          provider,
+          apiKey: provider === 'gemini' ? geminiApiKey : undefined,
           enableTools: true,
           mode: conv.mode
         },
@@ -240,11 +250,17 @@ export default function Chat({ model, onSwitchModel }: Props) {
         <div className="flex min-w-0 flex-1 flex-col">
           <Header
             model={model}
+            provider={provider}
+            geminiModel={geminiModel}
+            geminiApiKey={geminiApiKey}
             mode={activeConversation.mode}
             canvasOpen={!!activeConversation.canvasOpen}
             onToggleMode={toggleMode}
             onToggleCanvas={toggleCanvas}
             onSwitchModel={onSwitchModel}
+            onProviderChange={setProvider}
+            onGeminiModelChange={setGeminiModel}
+            onGeminiApiKeyChange={setGeminiApiKey}
           />
           <MessageList
             messages={activeConversation.messages}
@@ -334,18 +350,30 @@ function ResizableCanvas({
 
 function Header({
   model,
+  provider,
+  geminiModel,
+  geminiApiKey,
   mode,
   canvasOpen,
   onToggleMode,
   onToggleCanvas,
-  onSwitchModel
+  onSwitchModel,
+  onProviderChange,
+  onGeminiModelChange,
+  onGeminiApiKeyChange
 }: {
   model: string
+  provider: 'local' | 'gemini'
+  geminiModel: string
+  geminiApiKey: string
   mode: AgentMode
   canvasOpen: boolean
   onToggleMode: () => void
   onToggleCanvas: () => void
   onSwitchModel: (model: string) => void
+  onProviderChange: (v: 'local' | 'gemini') => void
+  onGeminiModelChange: (v: string) => void
+  onGeminiApiKeyChange: (v: string) => void
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
@@ -362,7 +390,9 @@ function Header({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [pickerOpen])
 
-  const currentLabel = AVAILABLE_MODELS.find((m) => m.name === model)?.label ?? model
+  const currentLabel = provider === 'gemini'
+    ? geminiModel
+    : AVAILABLE_MODELS.find((m) => m.name === model)?.label ?? model
 
   return (
     <div className="drag flex h-11 shrink-0 items-center justify-between border-b border-white/[0.06] px-4">
@@ -390,8 +420,29 @@ function Header({
           {pickerOpen && (
             <div className="anim-fade-scale absolute right-0 top-full z-50 mt-1 w-64 rounded-xl border border-white/10 bg-[#1a1a1a] p-1.5 shadow-2xl backdrop-blur-xl">
               <div className="mb-1 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-ink-400">
-                Switch model
+                Provider
               </div>
+              <div className="mb-1 flex gap-1 px-1">
+                <button onClick={() => onProviderChange('local')} className={`rounded px-2 py-1 text-[11px] ${provider === 'local' ? 'bg-white/10 text-white' : 'text-ink-300'}`}>Local</button>
+                <button onClick={() => onProviderChange('gemini')} className={`rounded px-2 py-1 text-[11px] ${provider === 'gemini' ? 'bg-white/10 text-white' : 'text-ink-300'}`}>Gemini</button>
+              </div>
+              {provider === 'gemini' && (
+                <div className="space-y-1.5 px-2 py-1">
+                  <select value={geminiModel} onChange={(e) => onGeminiModelChange(e.target.value)} className="w-full rounded bg-black/30 px-2 py-1 text-[11px]">
+                    {GEMINI_MODELS.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                  <input value={geminiApiKey} onChange={(e) => onGeminiApiKeyChange(e.target.value)} placeholder="Gemini API key" className="w-full rounded bg-black/30 px-2 py-1 text-[11px]" />
+                </div>
+              )}
+              {provider === 'local' && (
+                <>
+                  <div className="mb-1 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-ink-400">
+                    Switch model
+                  </div>
               {AVAILABLE_MODELS.map((m) => (
                 <button
                   key={m.name}
@@ -423,6 +474,8 @@ function Header({
                   )}
                 </button>
               ))}
+                </>
+              )}
             </div>
           )}
         </div>

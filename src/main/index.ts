@@ -9,6 +9,7 @@ import {
   stopServer,
   hasModel,
   chatStream,
+  geminiChatStream,
   listLocalModels,
   type MLXChatMessage
 } from './mlx'
@@ -189,6 +190,9 @@ async function handleChat(req: ChatRequest, channel: string): Promise<void> {
 
     const useTools = req.mode === 'code' || req.enableTools
     const maxRounds = req.mode === 'code' ? MAX_TOOL_ROUNDS_CODE : MAX_TOOL_ROUNDS_CHAT
+    if (req.provider === 'gemini' && !req.apiKey) {
+      throw new Error('Gemini API key is required.')
+    }
 
     emit({ type: 'activity', activity: { kind: 'thinking', chars: 0 } })
 
@@ -253,11 +257,20 @@ async function handleChat(req: ChatRequest, channel: string): Promise<void> {
         }
       }
 
-      streamLoop: for await (const chunk of chatStream({
-        model: req.model,
-        messages: baseMessages,
-        signal: abort.signal
-      })) {
+      const stream = req.provider === 'gemini'
+        ? geminiChatStream({
+            model: req.model || 'gemini-3.1-pro-preview',
+            messages: baseMessages,
+            apiKey: req.apiKey ?? '',
+            signal: abort.signal
+          })
+        : chatStream({
+            model: req.model,
+            messages: baseMessages,
+            signal: abort.signal
+          })
+
+      streamLoop: for await (const chunk of stream) {
         if (chunk.content) {
           if (firstToken) {
             firstToken = false
