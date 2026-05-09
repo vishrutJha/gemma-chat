@@ -1,4 +1,4 @@
-import { AVAILABLE_MODELS, type SetupStatus } from '@shared/types'
+import { AVAILABLE_MODELS, GEMINI_MODELS, type SetupStatus } from '@shared/types'
 import gemmaLogoUrl from '../assets/gemma-logo.png'
 
 interface Props {
@@ -133,7 +133,13 @@ function WelcomeScreen({
           {provider === 'local' && <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-ink-400">Pick a model</div>}
           {provider === 'gemini' && (
             <div className="mb-4 space-y-2">
-              <input value={geminiModel} onChange={(e) => onGeminiModelChange(e.target.value)} placeholder="gemini-2.5-flash" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm" />
+              <select value={geminiModel} onChange={(e) => onGeminiModelChange(e.target.value)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm">
+                {GEMINI_MODELS.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
               <input value={geminiApiKey} onChange={(e) => onGeminiApiKeyChange(e.target.value)} placeholder="Gemini API key" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm" />
             </div>
           )}

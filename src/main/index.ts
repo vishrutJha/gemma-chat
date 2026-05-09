@@ -259,7 +259,7 @@ async function handleChat(req: ChatRequest, channel: string): Promise<void> {
 
       const stream = req.provider === 'gemini'
         ? geminiChatStream({
-            model: req.model || 'gemini-2.5-flash',
+            model: req.model || 'gemini-3.1-pro-preview',
             messages: baseMessages,
             apiKey: req.apiKey ?? '',
             signal: abort.signal

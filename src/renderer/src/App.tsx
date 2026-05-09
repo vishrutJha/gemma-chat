@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { DEFAULT_MODEL, type SetupStatus } from '@shared/types'
+import { DEFAULT_MODEL, GEMINI_MODELS, type SetupStatus } from '@shared/types'
 import Setup from './components/Setup'
 import Chat from './components/Chat'
 
@@ -41,7 +41,7 @@ export default function App() {
           }
           const model = prev.phase === 'setup' ? prev.model : DEFAULT_MODEL
           const provider = prev.phase === 'setup' ? prev.provider : 'local'
-          const geminiModel = prev.phase === 'setup' ? prev.geminiModel : 'gemini-2.5-flash'
+          const geminiModel = prev.phase === 'setup' ? prev.geminiModel : GEMINI_MODELS[0]
           const geminiApiKey = prev.phase === 'setup' ? prev.geminiApiKey : ''
           return { phase: 'setup', status, model, provider, geminiModel, geminiApiKey }
         })
@@ -59,7 +59,7 @@ export default function App() {
             status: { stage: 'starting-mlx', message: 'Starting model runtime…' },
             model: DEFAULT_MODEL,
             provider: 'local',
-            geminiModel: 'gemini-2.5-flash',
+            geminiModel: GEMINI_MODELS[0],
             geminiApiKey: ''
           })
           window.api.startSetup(DEFAULT_MODEL)
@@ -71,7 +71,7 @@ export default function App() {
         status: { stage: 'checking', message: 'Welcome' },
         model: DEFAULT_MODEL,
         provider: (localStorage.getItem('gemma-chat:provider') as 'local' | 'gemini') ?? 'local',
-        geminiModel: localStorage.getItem('gemma-chat:gemini-model') ?? 'gemini-2.5-flash',
+        geminiModel: localStorage.getItem('gemma-chat:gemini-model') ?? GEMINI_MODELS[0],
         geminiApiKey: localStorage.getItem('gemma-chat:gemini-key') ?? ''
       })
     })()

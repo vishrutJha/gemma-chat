@@ -123,3 +123,9 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
 ]
 
 export const DEFAULT_MODEL = 'mlx-community/gemma-4-e4b-it-4bit'
+
+export const GEMINI_MODELS = [
+  'gemini-3.1-pro-preview',
+  'gemini-3.1-flash-lite',
+  'gemini-3-flash-preview'
+] as const

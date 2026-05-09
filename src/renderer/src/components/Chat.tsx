@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AVAILABLE_MODELS, type AgentMode, type ChatMessage, type ToolCall, type StreamChunk } from '@shared/types'
+import { AVAILABLE_MODELS, GEMINI_MODELS, type AgentMode, type ChatMessage, type ToolCall, type StreamChunk } from '@shared/types'
 import gemmaLogoUrl from '../assets/gemma-logo.png'
 import Composer from './Composer'
 import Message from './Message'
@@ -61,7 +61,7 @@ export default function Chat({ model, onSwitchModel }: Props) {
     () => (localStorage.getItem('gemma-chat:provider') as 'local' | 'gemini') ?? 'local'
   )
   const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('gemma-chat:gemini-key') ?? '')
-  const [geminiModel, setGeminiModel] = useState(() => localStorage.getItem('gemma-chat:gemini-model') ?? 'gemini-2.5-flash')
+  const [geminiModel, setGeminiModel] = useState(() => localStorage.getItem('gemma-chat:gemini-model') ?? GEMINI_MODELS[0])
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     const loaded = loadConversations()
     return loaded.length ? loaded : [newConversation()]
@@ -428,7 +428,13 @@ function Header({
               </div>
               {provider === 'gemini' && (
                 <div className="space-y-1.5 px-2 py-1">
-                  <input value={geminiModel} onChange={(e) => onGeminiModelChange(e.target.value)} placeholder="gemini-2.5-flash" className="w-full rounded bg-black/30 px-2 py-1 text-[11px]" />
+                  <select value={geminiModel} onChange={(e) => onGeminiModelChange(e.target.value)} className="w-full rounded bg-black/30 px-2 py-1 text-[11px]">
+                    {GEMINI_MODELS.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
                   <input value={geminiApiKey} onChange={(e) => onGeminiApiKeyChange(e.target.value)} placeholder="Gemini API key" className="w-full rounded bg-black/30 px-2 py-1 text-[11px]" />
                 </div>
               )}
